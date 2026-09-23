@@ -9,6 +9,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.persistencia.data.Tarea
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun TareaScreen(
@@ -23,10 +25,14 @@ fun TareaScreen(
     listaTareas: List<Tarea>,
     onEliminarTarea: (Tarea) -> Unit
 ) {
+    // 1. Estado para recordar la posición del scroll
+    val scrollState = rememberScrollState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(scrollState) // 2. Habilita el desplazamiento vertical al rotar
     ) {
         Text(
             text = "Punto 1: Ciclo de Vida + Punto 2: Room",
@@ -92,29 +98,29 @@ fun TareaScreen(
 
         // --- SECCIÓN LISTA DE TAREAS (Punto 2: CRUD) ---
         Text(text = "Tareas Almacenadas Localmente:", style = MaterialTheme.typography.titleMedium)
+        Spacer(modifier = Modifier.height(8.dp))
 
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(listaTareas) { tarea ->
-                Card(
+        // 3. Reemplazamos LazyColumn por Column simple + forEach para evitar conflictos de scroll anidado
+        listaTareas.forEach { tarea ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = tarea.titulo, style = MaterialTheme.typography.titleSmall)
-                            Text(text = tarea.descripcion, style = MaterialTheme.typography.bodyMedium)
-                            Text(text = "Fecha: ${tarea.fechaCreacion}", style = MaterialTheme.typography.bodySmall)
-                        }
-                        IconButton(onClick = { onEliminarTarea(tarea) }) {
-                            Text("❌")
-                        }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = tarea.titulo, style = MaterialTheme.typography.titleSmall)
+                        Text(text = tarea.descripcion, style = MaterialTheme.typography.bodyMedium)
+                        Text(text = "Fecha: ${tarea.fechaCreacion}", style = MaterialTheme.typography.bodySmall)
+                    }
+                    IconButton(onClick = { onEliminarTarea(tarea) }) {
+                        Text("❌")
                     }
                 }
             }
