@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [Tarea::class], version = 1, exportSchema = false)
+@Database(entities = [Tarea::class], version = 2, exportSchema = false) // Versión 2
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun tareaDao(): TareaDao
@@ -20,7 +20,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "base_datos_tareas"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration() // Recrea la tabla si cambia la versión
+                    .build()
                 INSTANCE = instance
                 instance
             }

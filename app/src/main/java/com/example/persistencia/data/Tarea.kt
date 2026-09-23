@@ -10,5 +10,6 @@ data class Tarea(
     val titulo: String,
     val descripcion: String,
     val estadoCompletado: Boolean = false,
-    val fechaCreacion: String
+    val fechaCreacion: String,
+    val tiempoAcumuladoSegundos: Int = 0 // Nuevo campo para las métricas
 )
