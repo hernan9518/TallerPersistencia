@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.persistencia.data.Tarea
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,11 +33,17 @@ fun HomeScreen(
     var mostrarDialogo by remember { mutableStateOf(false) }
     var nuevoTitulo by remember { mutableStateOf("") }
     var nuevaDescripcion by remember { mutableStateOf("") }
+    var mostrarAcercaDe by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Mis Sesiones de Enfoque") },
+                actions = {
+                    IconButton(onClick = { mostrarAcercaDe = true }) {
+                        Icon(Icons.Default.Info, contentDescription = "Acerca de")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
@@ -116,6 +124,30 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+
+        if (mostrarAcercaDe) {
+            AlertDialog(
+                onDismissRequest = { mostrarAcercaDe = false },
+                title = { Text("Acerca de:") },
+                text = {
+                    Column {
+                        Text("Sesiones de Enfoque", style = MaterialTheme.typography.titleMedium)
+                        Text("Versión 1.0", style = MaterialTheme.typography.bodySmall)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Integrantes:", style = MaterialTheme.typography.titleSmall)
+                        Text("• David Barahona")
+                        Text("• Jesús Villota")
+                        Text("• Manuel Rosero")
+                        Text("• Brayan Perenguez")
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { mostrarAcercaDe = false }) {
+                        Text("Cerrar")
+                    }
+                }
+            )
         }
 
         // Diálogo para crear nueva tarea
