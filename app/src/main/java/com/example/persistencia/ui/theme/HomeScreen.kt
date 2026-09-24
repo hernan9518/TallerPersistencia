@@ -20,6 +20,9 @@ import com.example.persistencia.data.Tarea
 @Composable
 fun HomeScreen(
     listaTareas: List<Tarea>,
+    hayConexion: Boolean,
+    sincronizando: Boolean,
+    onSincronizar: () -> Unit,
     onAgregarTarea: (String, String) -> Unit,
     onEliminarTarea: (Tarea) -> Unit,
     onToggleCompletada: (Tarea) -> Unit,
@@ -50,6 +53,39 @@ fun HomeScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+            // --- Estado Offline-First ---
+            val pendientes = listaTareas.count { it.pendienteSincronizacion }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (hayConexion) MaterialTheme.colorScheme.secondaryContainer
+                    else MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = when {
+                            sincronizando -> "🔄 Sincronizando..."
+                            !hayConexion -> "📴 Sin conexión · $pendientes cambio(s) pendiente(s)"
+                            pendientes > 0 -> "🌐 En línea · $pendientes cambio(s) pendiente(s)"
+                            else -> "✅ Todo sincronizado"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (hayConexion && pendientes > 0 && !sincronizando) {
+                        TextButton(onClick = onSincronizar) { Text("Sincronizar") }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
             Text(
                 text = "Selecciona una tarea para iniciar el cronómetro de enfoque o crea una nueva.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -180,6 +216,11 @@ fun ItemTarea(
                     text = "⏱️ Tiempo enfocado: ${minutos}m ${segundos}s",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = if (tarea.pendienteSincronizacion) "⏳ Pendiente de sincronizar" else "✔ Sincronizada",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 

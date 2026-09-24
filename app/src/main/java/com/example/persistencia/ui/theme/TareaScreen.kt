@@ -7,6 +7,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.example.persistencia.data.Tarea
 import kotlin.math.roundToInt
@@ -15,8 +19,10 @@ import kotlin.math.roundToInt
 @Composable
 fun TareaScreen(
     tarea: Tarea?,
-    descripcion: String,
-    onDescripcionChange: (String) -> Unit,
+    descripcion: TextFieldValue,
+    onDescripcionChange: (TextFieldValue) -> Unit,
+    campoEnfocado: Boolean,
+    onFocoChange: (Boolean) -> Unit,
     segundosTranscurridos: Int,
     minutosMeta: Int,
     onMetaSelected: (Int) -> Unit,
@@ -27,6 +33,13 @@ fun TareaScreen(
     onVolver: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+
+    // Foco: se lee UNA vez al entrar (el valor restaurado desde el Bundle)
+    val enfocarAlEntrar = remember { campoEnfocado }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (enfocarAlEntrar) focusRequester.requestFocus()
+    }
 
     Scaffold(
         topBar = {
@@ -129,7 +142,9 @@ fun TareaScreen(
                 label = { Text("Escribe tus notas extensas aquí...") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(160.dp),
+                    .height(160.dp)
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { onFocoChange(it.isFocused) },
                 maxLines = 8
             )
 
