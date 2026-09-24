@@ -8,8 +8,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import com.example.persistencia.data.AppDatabase
 import com.example.persistencia.data.Tarea
+import com.example.persistencia.ui.HomeScreen
 import com.example.persistencia.ui.TareaScreen
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,8 +24,8 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
-    // Variables de estado temporal (Punto 1)
-    private var tituloEstado = mutableStateOf("")
+    // Variables de estado temporal para la sesión activa (Punto 1)
+    private var tareaSeleccionadaId = mutableStateOf<Int?>(null)
     private var descripcionEstado = mutableStateOf("")
     private var segundosTranscurridos = mutableStateOf(0)
     private var temporizadorActivo = mutableStateOf(false)
@@ -42,12 +46,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Recuperación en onCreate (Punto 1)
+        // Recuperación explícita del ciclo de vida (Punto 1)
         savedInstanceState?.let { bundle ->
-            tituloEstado.value = bundle.getString("KEY_TITULO", "")
+            if (bundle.containsKey("KEY_TAREA_ID")) {
+                tareaSeleccionadaId.value = bundle.getInt("KEY_TAREA_ID")
+            }
             descripcionEstado.value = bundle.getString("KEY_DESCRIPCION", "")
             segundosTranscurridos.value = bundle.getInt("KEY_SEGUNDOS", 0)
             temporizadorActivo.value = bundle.getBoolean("KEY_ACTIVO", false)
+
             if (temporizadorActivo.value) {
                 handler.post(runnable)
             }
@@ -56,18 +63,49 @@ class MainActivity : ComponentActivity() {
         cargarTareasDesdeRoom()
 
         setContent {
-            TareaScreen(
-                titulo = tituloEstado.value,
-                onTituloChange = { tituloEstado.value = it },
-                descripcion = descripcionEstado.value,
-                onDescripcionChange = { descripcionEstado.value = it },
-                segundosTranscurridos = segundosTranscurridos.value,
-                enEjecucion = temporizadorActivo.value,
-                onToggleTemporizador = { toggleTemporizador() },
-                onGuardarTarea = { guardarTareaEnRoom() },
-                listaTareas = listaTareas,
-                onEliminarTarea = { eliminarTareaDeRoom(it) }
-            )
+            val navController = rememberNavController()
+
+            NavHost(navController = navController, startDestination = "home") {
+                // Pantalla 1: Lista Principal
+                composable("home") {
+                    HomeScreen(
+                        listaTareas = listaTareas,
+                        onAgregarTarea = { titulo, desc -> crearTareaEnRoom(titulo, desc) },
+                        onEliminarTarea = { tarea -> eliminarTareaDeRoom(tarea) },
+                        onToggleCompletada = { tarea -> toggleCompletadaEnRoom(tarea) },
+                        onIniciarSesion = { tarea ->
+                            tareaSeleccionadaId.value = tarea.id
+                            descripcionEstado.value = tarea.descripcion
+                            segundosTranscurridos.value = 0
+                            navController.navigate("sesion")
+                        }
+                    )
+                }
+
+                // Pantalla 2: Sesión de Enfoque
+                composable("sesion") {
+                    val tareaActual = listaTareas.find { it.id == tareaSeleccionadaId.value }
+
+                    TareaScreen(
+                        tarea = tareaActual,
+                        descripcion = descripcionEstado.value,
+                        onDescripcionChange = { descripcionEstado.value = it },
+                        segundosTranscurridos = segundosTranscurridos.value,
+                        enEjecucion = temporizadorActivo.value,
+                        onToggleTemporizador = { toggleTemporizador() },
+                        onGuardarSesion = {
+                            tareaActual?.let { tarea ->
+                                guardarSesionEnRoom(tarea)
+                                navController.popBackStack()
+                            }
+                        },
+                        onVolver = {
+                            detenerTemporizador()
+                            navController.popBackStack()
+                        }
+                    )
+                }
+            }
         }
     }
 
@@ -80,18 +118,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun guardarTareaEnRoom() {
-        if (tituloEstado.value.isBlank()) {
-            Toast.makeText(this, "Ingresa un título", Toast.LENGTH_SHORT).show()
-            return
-        }
+    private fun detenerTemporizador() {
+        temporizadorActivo.value = false
+        handler.removeCallbacks(runnable)
+    }
 
+    // --- OPERACIONES DE ROOM (Punto 2) ---
+
+    private fun crearTareaEnRoom(titulo: String, descripcion: String) {
         val fechaActual = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date())
         val nuevaTarea = Tarea(
-            titulo = tituloEstado.value,
-            descripcion = "${descripcionEstado.value} (Tiempo enfocado: ${segundosTranscurridos.value}s)",
+            titulo = titulo,
+            descripcion = descripcion,
             estadoCompletado = false,
-            fechaCreacion = fechaActual
+            fechaCreacion = fechaActual,
+            tiempoAcumuladoSegundos = 0
         )
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -99,13 +140,32 @@ class MainActivity : ComponentActivity() {
             db.tareaDao().insertarTarea(nuevaTarea)
             cargarTareasDesdeRoom()
         }
+    }
 
-        // Limpiar campos temporales
-        tituloEstado.value = ""
-        descripcionEstado.value = ""
+    private fun guardarSesionEnRoom(tarea: Tarea) {
+        val tareaActualizada = tarea.copy(
+            descripcion = descripcionEstado.value,
+            tiempoAcumuladoSegundos = tarea.tiempoAcumuladoSegundos + segundosTranscurridos.value
+        )
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val db = AppDatabase.getDatabase(applicationContext)
+            db.tareaDao().actualizarTarea(tareaActualizada)
+            cargarTareasDesdeRoom()
+        }
+
+        detenerTemporizador()
         segundosTranscurridos.value = 0
-        temporizadorActivo.value = false
-        handler.removeCallbacks(runnable)
+        Toast.makeText(this, "Sesión guardada en Room", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toggleCompletadaEnRoom(tarea: Tarea) {
+        val tareaActualizada = tarea.copy(estadoCompletado = !tarea.estadoCompletado)
+        CoroutineScope(Dispatchers.IO).launch {
+            val db = AppDatabase.getDatabase(applicationContext)
+            db.tareaDao().actualizarTarea(tareaActualizada)
+            cargarTareasDesdeRoom()
+        }
     }
 
     private fun cargarTareasDesdeRoom() {
@@ -127,12 +187,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // --- MANEJO EXPLÍCITO DEL CICLO DE VIDA (Punto 1) ---
+    // --- MANEJO DEL CICLO DE VIDA (Punto 1) ---
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        // Guardar estado temporal en el Bundle
-        outState.putString("KEY_TITULO", tituloEstado.value)
+        tareaSeleccionadaId.value?.let { outState.putInt("KEY_TAREA_ID", it) }
         outState.putString("KEY_DESCRIPCION", descripcionEstado.value)
         outState.putInt("KEY_SEGUNDOS", segundosTranscurridos.value)
         outState.putBoolean("KEY_ACTIVO", temporizadorActivo.value)
@@ -140,8 +199,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
-        // Recuperación explícita
-        tituloEstado.value = savedInstanceState.getString("KEY_TITULO", "")
+        if (savedInstanceState.containsKey("KEY_TAREA_ID")) {
+            tareaSeleccionadaId.value = savedInstanceState.getInt("KEY_TAREA_ID")
+        }
         descripcionEstado.value = savedInstanceState.getString("KEY_DESCRIPCION", "")
         segundosTranscurridos.value = savedInstanceState.getInt("KEY_SEGUNDOS", 0)
         temporizadorActivo.value = savedInstanceState.getBoolean("KEY_ACTIVO", false)
@@ -149,14 +209,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         super.onPause()
-        // Borrador rápido / Pausa de temporizador al pasar a segundo plano
         if (temporizadorActivo.value) {
             handler.removeCallbacks(runnable)
         }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        // Liberar recursos adicionales si es necesario
     }
 }
