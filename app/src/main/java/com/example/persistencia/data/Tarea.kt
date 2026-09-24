@@ -14,7 +14,7 @@ data class Tarea(
     val fechaCreacion: String,
     val tiempoAcumuladoSegundos: Int = 0,
 
-    // --- Offline-First (Punto 2, ítem 5) ---
+    // --- Offline-First (2) ---
     // true = el cambio se hizo localmente y aún no se ha "enviado" al servidor
     @ColumnInfo(defaultValue = "1")
     val pendienteSincronizacion: Boolean = true,

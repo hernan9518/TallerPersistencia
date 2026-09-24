@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
         private const val PREFS_BORRADOR = "borrador_sesion"
     }
 
-    // ---------------- Estado temporal de la sesión (Punto 1, SIN ViewModel) ----------------
+    // ---------------- Estado temporal de la sesión (1) ----------------
     private val tareaSeleccionadaId = mutableStateOf<Int?>(null)
     private val descripcionEstado = mutableStateOf(TextFieldValue(""))   // texto + posición del cursor
     private val campoEnfocado = mutableStateOf(false)                    // ¿el campo tenía el foco?
@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
     private var ringtoneActual: Ringtone? = null
 
-    // ---------------- Room + Offline-First (Punto 2) ----------------
+    // ---------------- Room + Offline-First (2) ----------------
     private val listaTareas = mutableStateListOf<Tarea>()
     private val hayConexion = mutableStateOf(true)
     private val sincronizando = mutableStateOf(false)
@@ -101,9 +101,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    // =====================================================================================
-    //  CICLO DE VIDA (Punto 1)
-    // =====================================================================================
+    //  CICLO DE VIDA (1)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -335,9 +333,7 @@ class MainActivity : ComponentActivity() {
         if (ringtoneActual?.isPlaying == true) ringtoneActual?.stop()
     }
 
-    // =====================================================================================
-    //  ROOM: CRUD (Punto 2)
-    // =====================================================================================
+    //  ROOM: CRUD (2)
 
     /** Ejecuta una escritura en Room fuera del hilo principal. NonCancellable: si el usuario gira
      *  la pantalla justo al guardar, la escritura no se pierde. */
@@ -395,9 +391,8 @@ class MainActivity : ComponentActivity() {
         ejecutarEnRoom { actualizarTarea(marcada) }
     }
 
-    // =====================================================================================
-    //  OFFLINE-FIRST: detección de red + sincronización (simulada)
-    // =====================================================================================
+
+    //  OFFLINE-FIRST: detección de red + sincronización
 
     private fun registrarMonitorDeRed() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -408,7 +403,7 @@ class MainActivity : ComponentActivity() {
 
     /** Envía al "servidor" los cambios hechos sin conexión. Es idempotente: si se interrumpe,
      *  los registros siguen marcados como pendientes y se reintenta después.
-     *  En el Punto 5 aquí va la llamada HTTP real. */
+      */
     private fun sincronizarPendientes() {
         if (!hayConexion.value || sincronizando.value) return
         lifecycleScope.launch {

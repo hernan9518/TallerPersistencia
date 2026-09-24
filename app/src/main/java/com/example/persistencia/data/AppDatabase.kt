@@ -16,7 +16,7 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
-        // Migración real: conserva los datos existentes (a diferencia de fallbackToDestructiveMigration)
+        // Migración real: conserva los datos existentes
         private val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE tabla_tareas ADD COLUMN pendienteSincronizacion INTEGER NOT NULL DEFAULT 1")
