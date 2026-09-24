@@ -1,5 +1,6 @@
 package com.example.persistencia
 
+import android.media.RingtoneManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -24,10 +25,12 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
-    // Variables de estado temporal para la sesión activa (Punto 1)
+    // Variables de estado temporal (Punto 1)
     private var tareaSeleccionadaId = mutableStateOf<Int?>(null)
     private var descripcionEstado = mutableStateOf("")
     private var segundosTranscurridos = mutableStateOf(0)
+    private var minutosMeta = mutableStateOf(5) // Por defecto 5 min
+    private var esModoDescanso = mutableStateOf(false)
     private var temporizadorActivo = mutableStateOf(false)
 
     // Lista observable para Room (Punto 2)
@@ -38,6 +41,14 @@ class MainActivity : ComponentActivity() {
         override fun run() {
             if (temporizadorActivo.value) {
                 segundosTranscurridos.value++
+
+                // Verificar si se alcanzó la meta de tiempo seleccionada
+                val segundosMeta = minutosMeta.value * 60
+                if (segundosTranscurridos.value == segundosMeta && !esModoDescanso.value) {
+                    reproducirAlarma()
+                    esModoDescanso.value = true
+                }
+
                 handler.postDelayed(this, 1000)
             }
         }
@@ -53,6 +64,8 @@ class MainActivity : ComponentActivity() {
             }
             descripcionEstado.value = bundle.getString("KEY_DESCRIPCION", "")
             segundosTranscurridos.value = bundle.getInt("KEY_SEGUNDOS", 0)
+            minutosMeta.value = bundle.getInt("KEY_META", 5)
+            esModoDescanso.value = bundle.getBoolean("KEY_DESCANSO", false)
             temporizadorActivo.value = bundle.getBoolean("KEY_ACTIVO", false)
 
             if (temporizadorActivo.value) {
@@ -66,7 +79,6 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
 
             NavHost(navController = navController, startDestination = "home") {
-                // Pantalla 1: Lista Principal
                 composable("home") {
                     HomeScreen(
                         listaTareas = listaTareas,
@@ -77,12 +89,12 @@ class MainActivity : ComponentActivity() {
                             tareaSeleccionadaId.value = tarea.id
                             descripcionEstado.value = tarea.descripcion
                             segundosTranscurridos.value = 0
+                            esModoDescanso.value = false
                             navController.navigate("sesion")
                         }
                     )
                 }
 
-                // Pantalla 2: Sesión de Enfoque
                 composable("sesion") {
                     val tareaActual = listaTareas.find { it.id == tareaSeleccionadaId.value }
 
@@ -91,6 +103,9 @@ class MainActivity : ComponentActivity() {
                         descripcion = descripcionEstado.value,
                         onDescripcionChange = { descripcionEstado.value = it },
                         segundosTranscurridos = segundosTranscurridos.value,
+                        minutosMeta = minutosMeta.value,
+                        onMetaSelected = { minutosMeta.value = it },
+                        esModoDescanso = esModoDescanso.value,
                         enEjecucion = temporizadorActivo.value,
                         onToggleTemporizador = { toggleTemporizador() },
                         onGuardarSesion = {
@@ -106,6 +121,17 @@ class MainActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    private fun reproducirAlarma() {
+        try {
+            val notificacionUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val ringtone = RingtoneManager.getRingtone(applicationContext, notificacionUri)
+            ringtone.play()
+            Toast.makeText(this, "🔔 ¡Meta alcanzada! Tómate un descanso.", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -194,6 +220,8 @@ class MainActivity : ComponentActivity() {
         tareaSeleccionadaId.value?.let { outState.putInt("KEY_TAREA_ID", it) }
         outState.putString("KEY_DESCRIPCION", descripcionEstado.value)
         outState.putInt("KEY_SEGUNDOS", segundosTranscurridos.value)
+        outState.putInt("KEY_META", minutosMeta.value)
+        outState.putBoolean("KEY_DESCANSO", esModoDescanso.value)
         outState.putBoolean("KEY_ACTIVO", temporizadorActivo.value)
     }
 
@@ -204,6 +232,8 @@ class MainActivity : ComponentActivity() {
         }
         descripcionEstado.value = savedInstanceState.getString("KEY_DESCRIPCION", "")
         segundosTranscurridos.value = savedInstanceState.getInt("KEY_SEGUNDOS", 0)
+        minutosMeta.value = savedInstanceState.getInt("KEY_META", 5)
+        esModoDescanso.value = savedInstanceState.getBoolean("KEY_DESCANSO", false)
         temporizadorActivo.value = savedInstanceState.getBoolean("KEY_ACTIVO", false)
     }
 

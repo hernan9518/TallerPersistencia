@@ -17,6 +17,9 @@ fun TareaScreen(
     descripcion: String,
     onDescripcionChange: (String) -> Unit,
     segundosTranscurridos: Int,
+    minutosMeta: Int,
+    onMetaSelected: (Int) -> Unit,
+    esModoDescanso: Boolean,
     enEjecucion: Boolean,
     onToggleTemporizador: () -> Unit,
     onGuardarSesion: () -> Unit,
@@ -27,14 +30,16 @@ fun TareaScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(tarea?.titulo ?: "Sesión de Enfoque") },
+                title = { Text(tarea?.titulo ?: "Sesión Pomodoro") },
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
                         Text("⬅️")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = if (esModoDescanso)
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.primaryContainer
                 )
             )
         }
@@ -47,23 +52,49 @@ fun TareaScreen(
                 .verticalScroll(scrollState)
         ) {
             Text(
-                text = "Punto 1: Ciclo de Vida Temporal (onSaveInstanceState / Bundle)",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
+                text = if (esModoDescanso) "☕ ¡MODO DESCANSO ACTIVO!" else "🎯 MODO ENFOQUE ACTIVO",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (esModoDescanso) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // --- SECCIÓN TEMPORIZADOR (Punto 1) ---
+            // --- SELECTOR DE TIEMPO META ---
+            Text(text = "Seleccionar Meta de Enfoque:", style = MaterialTheme.typography.labelLarge)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            ) {
+                listOf(1, 5, 10, 15, 25).forEach { min ->
+                    FilterChip(
+                        selected = minutosMeta == min,
+                        onClick = { onMetaSelected(min) },
+                        label = { Text("$min min") }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // --- TARJETA DE CRONÓMETRO CON CONTEO ASCENDENTE ---
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                colors = CardDefaults.cardColors(
+                    containerColor = if (esModoDescanso)
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    else MaterialTheme.colorScheme.secondaryContainer
+                )
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = "Tiempo de esta sesión", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "Tiempo Acumulado (Meta: $minutosMeta min)",
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     Text(
                         text = "${segundosTranscurridos / 60}:${String.format("%02d", segundosTranscurridos % 60)}",
                         style = MaterialTheme.typography.displayLarge
@@ -88,10 +119,10 @@ fun TareaScreen(
             OutlinedTextField(
                 value = descripcion,
                 onValueChange = onDescripcionChange,
-                label = { Text("Escribe tus avances o notas extensas aquí...") },
+                label = { Text("Escribe tus notas extensas aquí...") },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp),
+                    .height(160.dp),
                 maxLines = 8
             )
 
@@ -101,7 +132,7 @@ fun TareaScreen(
                 onClick = onGuardarSesion,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Finalizar y Guardar en Room (Punto 2)")
+                Text("Finalizar y Guardar Tiempo en Room (Punto 2)")
             }
         }
     }
