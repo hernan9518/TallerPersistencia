@@ -1,5 +1,6 @@
 package com.example.persistencia
 
+import android.media.Ringtone
 import android.media.RingtoneManager
 import android.os.Bundle
 import android.os.Handler
@@ -25,13 +26,16 @@ import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
-    // Variables de estado temporal (Punto 1)
+    // Variables de estado temporal para la sesión activa (Punto 1)
     private var tareaSeleccionadaId = mutableStateOf<Int?>(null)
     private var descripcionEstado = mutableStateOf("")
     private var segundosTranscurridos = mutableStateOf(0)
     private var minutosMeta = mutableStateOf(5) // Por defecto 5 min
     private var esModoDescanso = mutableStateOf(false)
     private var temporizadorActivo = mutableStateOf(false)
+
+    // Referencia global para detener la tonada de alarma
+    private var ringtoneActual: Ringtone? = null
 
     // Lista observable para Room (Punto 2)
     private var listaTareas = mutableStateListOf<Tarea>()
@@ -79,6 +83,7 @@ class MainActivity : ComponentActivity() {
             val navController = rememberNavController()
 
             NavHost(navController = navController, startDestination = "home") {
+                // Pantalla 1: Lista Principal
                 composable("home") {
                     HomeScreen(
                         listaTareas = listaTareas,
@@ -95,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                // Pantalla 2: Sesión de Enfoque
                 composable("sesion") {
                     val tareaActual = listaTareas.find { it.id == tareaSeleccionadaId.value }
 
@@ -126,10 +132,15 @@ class MainActivity : ComponentActivity() {
 
     private fun reproducirAlarma() {
         try {
+            // Si ya está sonando, lo detiene antes de iniciar uno nuevo
+            ringtoneActual?.stop()
+
             val notificacionUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            val ringtone = RingtoneManager.getRingtone(applicationContext, notificacionUri)
-            ringtone.play()
+
+            ringtoneActual = RingtoneManager.getRingtone(applicationContext, notificacionUri)
+            ringtoneActual?.play()
+
             Toast.makeText(this, "🔔 ¡Meta alcanzada! Tómate un descanso.", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             e.printStackTrace()
@@ -141,13 +152,18 @@ class MainActivity : ComponentActivity() {
         if (temporizadorActivo.value) {
             handler.post(runnable)
         } else {
-            handler.removeCallbacks(runnable)
+            detenerTemporizador()
         }
     }
 
     private fun detenerTemporizador() {
         temporizadorActivo.value = false
         handler.removeCallbacks(runnable)
+
+        // Silenciar la alarma inmediatamente
+        if (ringtoneActual?.isPlaying == true) {
+            ringtoneActual?.stop()
+        }
     }
 
     // --- OPERACIONES DE ROOM (Punto 2) ---
@@ -241,7 +257,15 @@ class MainActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         if (temporizadorActivo.value) {
-            handler.removeCallbacks(runnable)
+            detenerTemporizador()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Liberación de recursos del audio al destruir la actividad
+        if (ringtoneActual?.isPlaying == true) {
+            ringtoneActual?.stop()
         }
     }
 }
