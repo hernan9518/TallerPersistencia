@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.persistencia.data.Tarea
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,7 +43,9 @@ fun TareaScreen(
                     else MaterialTheme.colorScheme.primaryContainer
                 )
             )
-        }
+        },
+        // imePadding() asegura que el teclado no tape los componentes al escribir
+        modifier = Modifier.imePadding()
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -57,28 +60,32 @@ fun TareaScreen(
                 color = if (esModoDescanso) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // --- SELECTOR DE TIEMPO META ---
-            Text(text = "Seleccionar Meta de Enfoque:", style = MaterialTheme.typography.labelLarge)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
+            // --- SELECTOR DE TIEMPO TIPO SLIDER ---
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                listOf(1, 5, 10, 15, 25).forEach { min ->
-                    FilterChip(
-                        selected = minutosMeta == min,
-                        onClick = { onMetaSelected(min) },
-                        label = { Text("$min min") }
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Meta de tiempo: $minutosMeta minutos",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+
+                    Slider(
+                        value = minutosMeta.toFloat(),
+                        onValueChange = { onMetaSelected(it.roundToInt()) },
+                        valueRange = 1f..60f,
+                        steps = 59, // Permite seleccionar de 1 en 1 min
+                        enabled = !enEjecucion // Se deshabilita mientras corre el cronómetro
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // --- TARJETA DE CRONÓMETRO CON CONTEO ASCENDENTE ---
+            // --- TARJETA DE CRONÓMETRO ---
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -92,7 +99,7 @@ fun TareaScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "Tiempo Acumulado (Meta: $minutosMeta min)",
+                        text = "Tiempo Acumulado",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
@@ -108,7 +115,7 @@ fun TareaScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- SECCIÓN NOTAS / BORRADOR (Punto 1) ---
+            // --- SECCIÓN NOTAS / BORRADOR ---
             Text(
                 text = "Bitácora / Apuntes de la sesión:",
                 style = MaterialTheme.typography.titleMedium
@@ -132,7 +139,7 @@ fun TareaScreen(
                 onClick = onGuardarSesion,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Finalizar y Guardar Tiempo en Room (Punto 2)")
+                Text("Finalizar y Guardar Tiempo en Room")
             }
         }
     }

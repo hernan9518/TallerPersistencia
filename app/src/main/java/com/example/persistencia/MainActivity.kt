@@ -126,7 +126,8 @@ class MainActivity : ComponentActivity() {
 
     private fun reproducirAlarma() {
         try {
-            val notificacionUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val notificacionUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
             val ringtone = RingtoneManager.getRingtone(applicationContext, notificacionUri)
             ringtone.play()
             Toast.makeText(this, "🔔 ¡Meta alcanzada! Tómate un descanso.", Toast.LENGTH_LONG).show()
