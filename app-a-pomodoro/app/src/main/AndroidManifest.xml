@@ -3,6 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!--el permiso que App B tendrá que declarar -->
+    <permission
+        android:name="com.example.persistencia.permission.READ_TAREAS"
+        android:protectionLevel="normal" />
 
     <application
         android:allowBackup="true"
@@ -25,6 +29,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- expone la tabla de tareas, protegida por el permiso de arriba -->
+        <provider
+            android:name=".data.TareaContentProvider"
+            android:authorities="com.example.persistencia.provider"
+            android:exported="true"
+            android:readPermission="com.example.persistencia.permission.READ_TAREAS" />
     </application>
 
 </manifest>
