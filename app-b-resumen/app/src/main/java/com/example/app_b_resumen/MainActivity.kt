@@ -1,4 +1,4 @@
-package com.example.resumenenfoque
+package com.example.app_b_resumen
 
 import android.net.Uri
 import android.os.Bundle
