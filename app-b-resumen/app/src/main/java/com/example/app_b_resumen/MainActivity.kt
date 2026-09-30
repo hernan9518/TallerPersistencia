@@ -15,10 +15,12 @@ import androidx.compose.ui.unit.dp
 // App B NO importa código de App A: solo conoce este contrato por convención.
 private val URI_TAREAS: Uri = Uri.parse("content://com.example.persistencia.provider/tareas")
 private const val COL_TITULO = "titulo"
+
+private const val COL_DESCRIPCION = "descripcion"
 private const val COL_ESTADO_COMPLETADO = "estadoCompletado"
 private const val COL_TIEMPO_ACUMULADO = "tiempoAcumuladoSegundos"
 
-data class ResumenTarea(val titulo: String, val completada: Boolean, val segundos: Int)
+data class ResumenTarea(val titulo: String, val descripcion: String, val completada: Boolean, val segundos: Int)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,12 +46,14 @@ class MainActivity : ComponentActivity() {
             val lista = mutableListOf<ResumenTarea>()
             cursor.use {
                 val idxTitulo = it.getColumnIndexOrThrow(COL_TITULO)
+                val idxDescripcion = it.getColumnIndexOrThrow(COL_DESCRIPCION)
                 val idxCompletada = it.getColumnIndexOrThrow(COL_ESTADO_COMPLETADO)
                 val idxSegundos = it.getColumnIndexOrThrow(COL_TIEMPO_ACUMULADO)
                 while (it.moveToNext()) {
                     lista.add(
                         ResumenTarea(
                             titulo = it.getString(idxTitulo),
+                            descripcion = it.getString(idxDescripcion),
                             completada = it.getInt(idxCompletada) != 0,
                             segundos = it.getInt(idxSegundos)
                         )
@@ -109,12 +113,21 @@ fun PantallaResumen(onConsultar: () -> Result<List<ResumenTarea>>) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 tareas.forEach { t ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(t.titulo)
-                        Text(if (t.completada) "✔" else "—")
+                    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(t.titulo)
+                            Text(if (t.completada) "✔" else "—")
+                        }
+                        if (t.descripcion.isNotBlank()) {
+                            Text(
+                                text = t.descripcion,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
