@@ -15,12 +15,12 @@ object RetrofitClient {
         .addInterceptor(logging)
         .build()
 
-    val api: ProductoApiService by lazy {
+    val api: TareaSugeridaApiService by lazy {
         Retrofit.Builder()
-            .baseUrl("https://fakestoreapi.com/")
+            .baseUrl("https://jsonplaceholder.typicode.com/")
             .client(cliente)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(ProductoApiService::class.java)
+            .create(TareaSugeridaApiService::class.java)
     }
 }
