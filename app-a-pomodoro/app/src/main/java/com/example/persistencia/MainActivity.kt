@@ -40,6 +40,11 @@ import com.example.persistencia.data.NotaSeguraManager
 import com.example.persistencia.ui.CatalogoScreen
 import com.example.persistencia.data.Producto
 import com.example.persistencia.data.ProductoRepository
+import com.example.persistencia.ui.CrearPasswordScreen
+import com.example.persistencia.ui.IngresarPasswordScreen
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
 
@@ -203,15 +208,41 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 composable("notaSegura") {
-                    NotaConfidencialScreen(
-                        rutaArchivoExterno = notaSeguraManager.rutaArchivoExterno(),
-                        onGuardarCifrada = { texto -> notaSeguraManager.guardarNotaCifrada(texto) },
-                        onGuardarSinCifrar = { texto -> notaSeguraManager.guardarCopiaSinCifrar(texto) },
-                        onLeerCifrada = { notaSeguraManager.leerNotaCifrada() },
-                        onLeerSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
-                        onVolver = { navController.popBackStack() }
-                    )
+                    var autenticado by rememberSaveable { mutableStateOf(false) }
+
+                    when {
+                        !notaSeguraManager.existePassword() -> {
+                            CrearPasswordScreen(
+                                onCrear = { password ->
+                                    notaSeguraManager.establecerPassword(password)
+                                    autenticado = true
+                                },
+                                onVolver = { navController.popBackStack() }
+                            )
+                        }
+                        !autenticado -> {
+                            IngresarPasswordScreen(
+                                onIngresar = { password ->
+                                    val correcta = notaSeguraManager.verificarPassword(password)
+                                    if (correcta) autenticado = true
+                                    correcta
+                                },
+                                onVolver = { navController.popBackStack() }
+                            )
+                        }
+                        else -> {
+                            NotaConfidencialScreen(
+                                rutaArchivoExterno = notaSeguraManager.rutaArchivoExterno(),
+                                onGuardarCifrada = { texto -> notaSeguraManager.guardarNotaCifrada(texto) },
+                                onGuardarSinCifrar = { texto -> notaSeguraManager.guardarCopiaSinCifrar(texto) },
+                                onLeerCifrada = { notaSeguraManager.leerNotaCifrada() },
+                                onLeerSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
+                                onVolver = { navController.popBackStack() }
+                            )
+                        }
+                    }
                 }
+
                 composable("catalogo") {
                     CatalogoScreen(
                         productos = listaProductos,
