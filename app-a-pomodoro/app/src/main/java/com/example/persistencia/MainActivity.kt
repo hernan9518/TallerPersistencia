@@ -35,6 +35,8 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.persistencia.ui.NotaConfidencialScreen
+import com.example.persistencia.data.NotaSeguraManager
 
 class MainActivity : ComponentActivity() {
 
@@ -69,6 +71,8 @@ class MainActivity : ComponentActivity() {
 
     // ---------------- Room + Offline-First (2) ----------------
     private val listaTareas = mutableStateListOf<Tarea>()
+
+    private val notaSeguraManager by lazy { NotaSeguraManager(applicationContext) }
     private val hayConexion = mutableStateOf(true)
     private val sincronizando = mutableStateOf(false)
 
@@ -125,6 +129,7 @@ class MainActivity : ComponentActivity() {
                         onAgregarTarea = { titulo, desc -> crearTareaEnRoom(titulo, desc) },
                         onEliminarTarea = { tarea -> eliminarTareaDeRoom(tarea) },
                         onToggleCompletada = { tarea -> toggleCompletadaEnRoom(tarea) },
+                        onAbrirNotaSegura = { navController.navigate("notaSegura") },
                         onIniciarSesion = { tarea ->
                             detenerTemporizador()
                             tareaSeleccionadaId.value = tarea.id
@@ -181,6 +186,16 @@ class MainActivity : ComponentActivity() {
                             salirDeSesion()
                             navController.popBackStack()
                         }
+                    )
+                }
+                composable("notaSegura") {
+                    NotaConfidencialScreen(
+                        rutaArchivoExterno = notaSeguraManager.rutaArchivoExterno(),
+                        onGuardarCifrada = { texto -> notaSeguraManager.guardarNotaCifrada(texto) },
+                        onGuardarSinCifrar = { texto -> notaSeguraManager.guardarCopiaSinCifrar(texto) },
+                        onLeerCifrada = { notaSeguraManager.leerNotaCifrada() },
+                        onLeerSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
+                        onVolver = { navController.popBackStack() }
                     )
                 }
             }

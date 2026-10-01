@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.example.persistencia.data.Tarea
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.saveable.rememberSaveable
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -28,7 +29,8 @@ fun HomeScreen(
     onAgregarTarea: (String, String) -> Unit,
     onEliminarTarea: (Tarea) -> Unit,
     onToggleCompletada: (Tarea) -> Unit,
-    onIniciarSesion: (Tarea) -> Unit
+    onIniciarSesion: (Tarea) -> Unit,
+    onAbrirNotaSegura: () -> Unit
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
     var nuevoTitulo by remember { mutableStateOf("") }
@@ -42,6 +44,9 @@ fun HomeScreen(
                 actions = {
                     IconButton(onClick = { mostrarAcercaDe = true }) {
                         Icon(Icons.Default.Info, contentDescription = "Acerca de")
+                    }
+                    IconButton(onClick = onAbrirNotaSegura) {
+                        Icon(Icons.Default.Lock, contentDescription = "Notas confidenciales")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
