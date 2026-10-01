@@ -146,8 +146,11 @@ fun PantallaResumen(
                 Spacer(modifier = Modifier.height(8.dp))
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                     Text(
-                        text = if (cantidad > 0) "🔒 Hay $cantidad nota confidencial guardada en App A"
-                        else "No hay notas confidenciales guardadas en App A",
+                        text = when {
+                            cantidad == 0 -> "No hay notas confidenciales guardadas en App A"
+                            cantidad == 1 -> "🔒 Hay 1 nota confidencial guardada en App A"
+                            else -> "🔒 Hay $cantidad notas confidenciales guardadas en App A"
+                        },
                         modifier = Modifier.padding(12.dp)
                     )
                 }
