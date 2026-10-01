@@ -63,9 +63,8 @@ class TareaContentProvider : ContentProvider() {
      */
     private fun consultarConteoNotas(): Cursor {
         val manager = NotaSeguraManager(context!!.applicationContext)
-        val cantidad = if (manager.hayNotaGuardada()) 1 else 0
         val cursor = MatrixCursor(arrayOf(TareaContract.COL_CANTIDAD_NOTAS))
-        cursor.addRow(arrayOf(cantidad))
+        cursor.addRow(arrayOf(manager.cantidadNotas()))
         return cursor
     }
 
