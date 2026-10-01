@@ -9,6 +9,8 @@ import android.net.Uri
 object TareaContract {
     const val AUTHORITY = "com.example.persistencia.provider"
     val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY/tareas")
+    val CONTENT_URI_NOTAS_CONFIDENCIALES: Uri = Uri.parse("content://$AUTHORITY/notasConfidenciales")
+    const val COL_CANTIDAD_NOTAS = "cantidad"
 
     // Permiso personalizado que App B debe declarar para poder leer
     const val PERMISO_LECTURA = "com.example.persistencia.permission.READ_TAREAS"
