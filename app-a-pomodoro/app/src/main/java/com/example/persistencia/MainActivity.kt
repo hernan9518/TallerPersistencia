@@ -208,13 +208,15 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 composable("notaSegura") {
+                    var existePassword by rememberSaveable { mutableStateOf(notaSeguraManager.existePassword()) }
                     var autenticado by rememberSaveable { mutableStateOf(false) }
 
                     when {
-                        !notaSeguraManager.existePassword() -> {
+                        !existePassword -> {
                             CrearPasswordScreen(
                                 onCrear = { password ->
                                     notaSeguraManager.establecerPassword(password)
+                                    existePassword = true
                                     autenticado = true
                                 },
                                 onVolver = { navController.popBackStack() }

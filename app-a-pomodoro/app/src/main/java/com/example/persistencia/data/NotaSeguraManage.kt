@@ -22,13 +22,17 @@ class NotaSeguraManager(private val context: Context) {
 
     // ---------------- Copia cifrada (interna) ----------------
 
-    private fun prefsCifradas() = EncryptedSharedPreferences.create(
-        context,
-        PREFS_CIFRADAS,
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-    )
+    private val prefsCifradasInstancia by lazy {
+        EncryptedSharedPreferences.create(
+            context,
+            PREFS_CIFRADAS,
+            MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    private fun prefsCifradas() = prefsCifradasInstancia
 
     fun guardarNotaCifrada(texto: String) {
         prefsCifradas().edit().putString(CLAVE_NOTA, texto).apply()
