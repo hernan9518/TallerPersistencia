@@ -7,10 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Tarea::class], version = 3, exportSchema = false)
+@Database(entities = [Tarea::class, Producto::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun tareaDao(): TareaDao
+    abstract fun productoDao(): ProductoDao
 
     companion object {
         @Volatile
@@ -23,6 +24,22 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE tabla_tareas ADD COLUMN eliminada INTEGER NOT NULL DEFAULT 0")
             }
         }
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS tabla_productos (
+                        id INTEGER NOT NULL PRIMARY KEY,
+                        titulo TEXT NOT NULL,
+                        precio REAL NOT NULL,
+                        categoria TEXT NOT NULL,
+                        imagenUrl TEXT NOT NULL,
+                        ultimaActualizacion INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -31,7 +48,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "base_datos_tareas"
                 )
-                    .addMigrations(MIGRATION_2_3)
+                    .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                     .build()
                 INSTANCE = instance
                 instance
