@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
@@ -30,7 +31,8 @@ fun HomeScreen(
     onEliminarTarea: (Tarea) -> Unit,
     onToggleCompletada: (Tarea) -> Unit,
     onIniciarSesion: (Tarea) -> Unit,
-    onAbrirNotaSegura: () -> Unit
+    onAbrirNotaSegura: () -> Unit,
+    onAbrirCatalogo: () -> Unit
 ) {
     var mostrarDialogo by remember { mutableStateOf(false) }
     var nuevoTitulo by remember { mutableStateOf("") }
@@ -47,6 +49,9 @@ fun HomeScreen(
                     }
                     IconButton(onClick = onAbrirNotaSegura) {
                         Icon(Icons.Default.Lock, contentDescription = "Notas confidenciales")
+                    }
+                    IconButton(onClick = onAbrirCatalogo) {
+                        Icon(Icons.Default.Cloud, contentDescription = "Catálogo en la nube")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

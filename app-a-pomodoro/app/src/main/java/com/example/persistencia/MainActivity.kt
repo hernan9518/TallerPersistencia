@@ -37,6 +37,9 @@ import java.util.Date
 import java.util.Locale
 import com.example.persistencia.ui.NotaConfidencialScreen
 import com.example.persistencia.data.NotaSeguraManager
+import com.example.persistencia.ui.CatalogoScreen
+import com.example.persistencia.data.Producto
+import com.example.persistencia.data.ProductoRepository
 
 class MainActivity : ComponentActivity() {
 
@@ -71,6 +74,13 @@ class MainActivity : ComponentActivity() {
 
     // ---------------- Room + Offline-First (2) ----------------
     private val listaTareas = mutableStateListOf<Tarea>()
+    private val listaProductos = mutableStateListOf<Producto>()
+    private val catalogoActualizando = mutableStateOf(false)
+    private val catalogoError = mutableStateOf<String?>(null)
+
+    private val productoRepository by lazy {
+        ProductoRepository(AppDatabase.getDatabase(applicationContext).productoDao())
+    }
 
     private val notaSeguraManager by lazy { NotaSeguraManager(applicationContext) }
     private val hayConexion = mutableStateOf(true)
@@ -130,6 +140,10 @@ class MainActivity : ComponentActivity() {
                         onEliminarTarea = { tarea -> eliminarTareaDeRoom(tarea) },
                         onToggleCompletada = { tarea -> toggleCompletadaEnRoom(tarea) },
                         onAbrirNotaSegura = { navController.navigate("notaSegura") },
+                        onAbrirCatalogo = {
+                            navController.navigate("catalogo")
+                            cargarCatalogo()
+                        },
                         onIniciarSesion = { tarea ->
                             detenerTemporizador()
                             tareaSeleccionadaId.value = tarea.id
@@ -195,6 +209,14 @@ class MainActivity : ComponentActivity() {
                         onGuardarSinCifrar = { texto -> notaSeguraManager.guardarCopiaSinCifrar(texto) },
                         onLeerCifrada = { notaSeguraManager.leerNotaCifrada() },
                         onLeerSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
+                        onVolver = { navController.popBackStack() }
+                    )
+                }
+                composable("catalogo") {
+                    CatalogoScreen(
+                        productos = listaProductos,
+                        actualizando = catalogoActualizando.value,
+                        error = catalogoError.value,
                         onVolver = { navController.popBackStack() }
                     )
                 }
@@ -369,6 +391,32 @@ class MainActivity : ComponentActivity() {
             }
             listaTareas.clear()
             listaTareas.addAll(tareas)
+        }
+    }
+    /**
+     * Caché híbrida: primero expone lo que ya está en Room,
+     * sin esperar red, y luego intenta actualizar en segundo plano.
+     */
+    private fun cargarCatalogo() {
+        lifecycleScope.launch {
+            // 1. Caché local primero: respuesta inmediata para la interfaz
+            val cache = withContext(Dispatchers.IO) { productoRepository.obtenerCache() }
+            listaProductos.clear()
+            listaProductos.addAll(cache)
+            catalogoError.value = null
+
+            // 2. Actualización remota en segundo plano
+            catalogoActualizando.value = true
+            try {
+                val actualizados = withContext(Dispatchers.IO) { productoRepository.actualizarDesdeRed() }
+                listaProductos.clear()
+                listaProductos.addAll(actualizados)
+            } catch (e: Exception) {
+                // Sin red o error del servidor: el caché local ya mostrado queda como está
+                catalogoError.value = e.message ?: "Error de red"
+            } finally {
+                catalogoActualizando.value = false
+            }
         }
     }
 
