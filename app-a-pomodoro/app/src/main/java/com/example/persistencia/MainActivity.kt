@@ -29,7 +29,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.persistencia.data.AppDatabase
 import com.example.persistencia.data.NotaSeguraManager
 import com.example.persistencia.data.Producto
-import com.example.persistencia.data.ProductoRepository
 import com.example.persistencia.data.Tarea
 import com.example.persistencia.data.TareaDao
 import com.example.persistencia.ui.CatalogoScreen
