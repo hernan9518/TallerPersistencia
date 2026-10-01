@@ -13,8 +13,12 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.Lifecycle
@@ -23,9 +27,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.persistencia.data.AppDatabase
+import com.example.persistencia.data.NotaSeguraManager
+import com.example.persistencia.data.Producto
+import com.example.persistencia.data.ProductoRepository
 import com.example.persistencia.data.Tarea
 import com.example.persistencia.data.TareaDao
+import com.example.persistencia.ui.CatalogoScreen
+import com.example.persistencia.ui.CrearPasswordScreen
 import com.example.persistencia.ui.HomeScreen
+import com.example.persistencia.ui.IngresarPasswordScreen
+import com.example.persistencia.ui.ListaNotasScreen
+import com.example.persistencia.ui.NotaEditorScreen
 import com.example.persistencia.ui.TareaScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -35,16 +47,6 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.example.persistencia.ui.NotaConfidencialScreen
-import com.example.persistencia.data.NotaSeguraManager
-import com.example.persistencia.ui.CatalogoScreen
-import com.example.persistencia.data.Producto
-import com.example.persistencia.data.ProductoRepository
-import com.example.persistencia.ui.CrearPasswordScreen
-import com.example.persistencia.ui.IngresarPasswordScreen
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 
 class MainActivity : ComponentActivity() {
 
@@ -64,7 +66,7 @@ class MainActivity : ComponentActivity() {
         private const val PREFS_BORRADOR = "borrador_sesion"
     }
 
-    // ---------------- Estado temporal de la sesión (1) ----------------
+    // ---------------- Estado temporal de la sesión (Punto 1, SIN ViewModel) ----------------
     private val tareaSeleccionadaId = mutableStateOf<Int?>(null)
     private val descripcionEstado = mutableStateOf(TextFieldValue(""))   // texto + posición del cursor
     private val campoEnfocado = mutableStateOf(false)                    // ¿el campo tenía el foco?
@@ -77,8 +79,12 @@ class MainActivity : ComponentActivity() {
 
     private var ringtoneActual: Ringtone? = null
 
-    // ---------------- Room + Offline-First (2) ----------------
+    // ---------------- Room + Offline-First (Punto 2) ----------------
     private val listaTareas = mutableStateListOf<Tarea>()
+    private val hayConexion = mutableStateOf(true)
+    private val sincronizando = mutableStateOf(false)
+
+    // ---------------- Catálogo en la nube (Punto 5) ----------------
     private val listaProductos = mutableStateListOf<Producto>()
     private val catalogoActualizando = mutableStateOf(false)
     private val catalogoError = mutableStateOf<String?>(null)
@@ -87,9 +93,8 @@ class MainActivity : ComponentActivity() {
         ProductoRepository(AppDatabase.getDatabase(applicationContext).productoDao())
     }
 
+    // ---------------- Notas confidenciales (Punto 4) ----------------
     private val notaSeguraManager by lazy { NotaSeguraManager(applicationContext) }
-    private val hayConexion = mutableStateOf(true)
-    private val sincronizando = mutableStateOf(false)
 
     private val handler = Handler(Looper.getMainLooper())
     private val runnable = object : Runnable {
@@ -120,7 +125,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    //  CICLO DE VIDA (1)
+    // =====================================================================================
+    //  CICLO DE VIDA (Punto 1)
+    // =====================================================================================
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,11 +151,6 @@ class MainActivity : ComponentActivity() {
                         onAgregarTarea = { titulo, desc -> crearTareaEnRoom(titulo, desc) },
                         onEliminarTarea = { tarea -> eliminarTareaDeRoom(tarea) },
                         onToggleCompletada = { tarea -> toggleCompletadaEnRoom(tarea) },
-                        onAbrirNotaSegura = { navController.navigate("notaSegura") },
-                        onAbrirCatalogo = {
-                            navController.navigate("catalogo")
-                            cargarCatalogo()
-                        },
                         onIniciarSesion = { tarea ->
                             detenerTemporizador()
                             tareaSeleccionadaId.value = tarea.id
@@ -165,6 +167,11 @@ class MainActivity : ComponentActivity() {
                                 descripcionEstado.value = TextFieldValue(tarea.descripcion)
                             }
                             navController.navigate("sesion")
+                        },
+                        onAbrirNotaSegura = { navController.navigate("notaSegura") },
+                        onAbrirCatalogo = {
+                            navController.navigate("catalogo")
+                            cargarCatalogo()
                         }
                     )
                 }
@@ -184,7 +191,8 @@ class MainActivity : ComponentActivity() {
                         onDescripcionChange = { descripcionEstado.value = it },
                         campoEnfocado = campoEnfocado.value,
                         onFocoChange = { enfocado ->
-                            // Perder el foco porque la Activity se pausa/destruye NO cuenta
+                            // Perder el foco porque la Activity se pausa/destruye NO cuenta:
+                            // solo se registra si ocurrió mientras la pantalla estaba activa.
                             if (enfocado || this@MainActivity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                                 campoEnfocado.value = enfocado
                             }
@@ -207,9 +215,15 @@ class MainActivity : ComponentActivity() {
                         }
                     )
                 }
+
                 composable("notaSegura") {
                     var existePassword by rememberSaveable { mutableStateOf(notaSeguraManager.existePassword()) }
                     var autenticado by rememberSaveable { mutableStateOf(false) }
+                    var notas by remember { mutableStateOf(notaSeguraManager.listarNotas()) }
+                    var idNotaEditando by rememberSaveable { mutableStateOf<String?>(null) }
+                    var editandoNotaNueva by rememberSaveable { mutableStateOf(false) }
+
+                    fun refrescarNotas() { notas = notaSeguraManager.listarNotas() }
 
                     when {
                         !existePassword -> {
@@ -232,13 +246,31 @@ class MainActivity : ComponentActivity() {
                                 onVolver = { navController.popBackStack() }
                             )
                         }
+                        editandoNotaNueva || idNotaEditando != null -> {
+                            val notaActual = idNotaEditando?.let { notaSeguraManager.obtenerNota(it) }
+                            NotaEditorScreen(
+                                tituloInicial = notaActual?.titulo ?: "",
+                                contenidoInicial = notaActual?.contenido ?: "",
+                                onGuardar = { titulo, contenido ->
+                                    notaSeguraManager.guardarNota(idNotaEditando, titulo, contenido)
+                                    refrescarNotas()
+                                    idNotaEditando = null
+                                    editandoNotaNueva = false
+                                },
+                                onVolver = {
+                                    idNotaEditando = null
+                                    editandoNotaNueva = false
+                                }
+                            )
+                        }
                         else -> {
-                            NotaConfidencialScreen(
+                            ListaNotasScreen(
+                                notas = notas,
                                 rutaArchivoExterno = notaSeguraManager.rutaArchivoExterno(),
-                                onGuardarCifrada = { texto -> notaSeguraManager.guardarNotaCifrada(texto) },
-                                onGuardarSinCifrar = { texto -> notaSeguraManager.guardarCopiaSinCifrar(texto) },
-                                onLeerCifrada = { notaSeguraManager.leerNotaCifrada() },
-                                onLeerSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
+                                onLeerCopiaSinCifrar = { notaSeguraManager.leerCopiaSinCifrar() },
+                                onNuevaNota = { editandoNotaNueva = true },
+                                onAbrirNota = { id -> idNotaEditando = id },
+                                onEliminarNota = { id -> notaSeguraManager.eliminarNota(id); refrescarNotas() },
                                 onVolver = { navController.popBackStack() }
                             )
                         }
@@ -403,7 +435,9 @@ class MainActivity : ComponentActivity() {
         if (ringtoneActual?.isPlaying == true) ringtoneActual?.stop()
     }
 
-    //  ROOM: CRUD (2)
+    // =====================================================================================
+    //  ROOM: CRUD (Punto 2)
+    // =====================================================================================
 
     /** Ejecuta una escritura en Room fuera del hilo principal. NonCancellable: si el usuario gira
      *  la pantalla justo al guardar, la escritura no se pierde. */
@@ -424,32 +458,6 @@ class MainActivity : ComponentActivity() {
             }
             listaTareas.clear()
             listaTareas.addAll(tareas)
-        }
-    }
-    /**
-     * Caché híbrida: primero expone lo que ya está en Room,
-     * sin esperar red, y luego intenta actualizar en segundo plano.
-     */
-    private fun cargarCatalogo() {
-        lifecycleScope.launch {
-            // 1. Caché local primero: respuesta inmediata para la interfaz
-            val cache = withContext(Dispatchers.IO) { productoRepository.obtenerCache() }
-            listaProductos.clear()
-            listaProductos.addAll(cache)
-            catalogoError.value = null
-
-            // 2. Actualización remota en segundo plano
-            catalogoActualizando.value = true
-            try {
-                val actualizados = withContext(Dispatchers.IO) { productoRepository.actualizarDesdeRed() }
-                listaProductos.clear()
-                listaProductos.addAll(actualizados)
-            } catch (e: Exception) {
-                // Sin red o error del servidor: el caché local ya mostrado queda como está
-                catalogoError.value = e.message ?: "Error de red"
-            } finally {
-                catalogoActualizando.value = false
-            }
         }
     }
 
@@ -487,8 +495,9 @@ class MainActivity : ComponentActivity() {
         ejecutarEnRoom { actualizarTarea(marcada) }
     }
 
-
-    //  OFFLINE-FIRST: detección de red + sincronización
+    // =====================================================================================
+    //  OFFLINE-FIRST: detección de red + sincronización (simulada)
+    // =====================================================================================
 
     private fun registrarMonitorDeRed() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -499,7 +508,7 @@ class MainActivity : ComponentActivity() {
 
     /** Envía al "servidor" los cambios hechos sin conexión. Es idempotente: si se interrumpe,
      *  los registros siguen marcados como pendientes y se reintenta después.
-      */
+     *  En el Punto 5 aquí va la llamada HTTP real. */
     private fun sincronizarPendientes() {
         if (!hayConexion.value || sincronizando.value) return
         lifecycleScope.launch {
@@ -517,6 +526,37 @@ class MainActivity : ComponentActivity() {
                 cargarTareasDesdeRoom()
             } finally {
                 sincronizando.value = false
+            }
+        }
+    }
+
+    // =====================================================================================
+    //  CATÁLOGO EN LA NUBE: caché híbrida (Punto 5)
+    // =====================================================================================
+
+    /**
+     * Caché híbrida (Punto 5): primero expone lo que ya está en Room,
+     * sin esperar red, y luego intenta actualizar en segundo plano.
+     */
+    private fun cargarCatalogo() {
+        lifecycleScope.launch {
+            // 1. Caché local primero: respuesta inmediata para la interfaz
+            val cache = withContext(Dispatchers.IO) { productoRepository.obtenerCache() }
+            listaProductos.clear()
+            listaProductos.addAll(cache)
+            catalogoError.value = null
+
+            // 2. Actualización remota en segundo plano
+            catalogoActualizando.value = true
+            try {
+                val actualizados = withContext(Dispatchers.IO) { productoRepository.actualizarDesdeRed() }
+                listaProductos.clear()
+                listaProductos.addAll(actualizados)
+            } catch (e: Exception) {
+                // Sin red o error del servidor: el caché local ya mostrado queda como está
+                catalogoError.value = e.message ?: "Error de red"
+            } finally {
+                catalogoActualizando.value = false
             }
         }
     }
