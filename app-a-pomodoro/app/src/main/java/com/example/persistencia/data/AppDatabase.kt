@@ -7,11 +7,11 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Tarea::class, Producto::class], version = 4, exportSchema = false)
+@Database(entities = [Tarea::class, TareaSugerida::class], version = 4, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun tareaDao(): TareaDao
-    abstract fun productoDao(): ProductoDao
+    abstract fun tareaSugeridaDao(): TareaSugeridaDao
 
     companion object {
         @Volatile
@@ -28,15 +28,13 @@ abstract class AppDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
-                    CREATE TABLE IF NOT EXISTS tabla_productos (
-                        id INTEGER NOT NULL PRIMARY KEY,
-                        titulo TEXT NOT NULL,
-                        precio REAL NOT NULL,
-                        categoria TEXT NOT NULL,
-                        imagenUrl TEXT NOT NULL,
-                        ultimaActualizacion INTEGER NOT NULL
-                    )
-                    """.trimIndent()
+            CREATE TABLE IF NOT EXISTS tabla_tareas_sugeridas (
+                id INTEGER NOT NULL PRIMARY KEY,
+                titulo TEXT NOT NULL,
+                completadaEnOrigen INTEGER NOT NULL,
+                importada INTEGER NOT NULL DEFAULT 0
+            )
+            """.trimIndent()
                 )
             }
         }
