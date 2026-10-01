@@ -28,9 +28,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.persistencia.data.AppDatabase
 import com.example.persistencia.data.NotaSeguraManager
-import com.example.persistencia.data.Producto
 import com.example.persistencia.data.Tarea
 import com.example.persistencia.data.TareaDao
+import com.example.persistencia.data.TareaSugerida
+import com.example.persistencia.data.TareaSugeridaRepository
 import com.example.persistencia.ui.CatalogoScreen
 import com.example.persistencia.ui.CrearPasswordScreen
 import com.example.persistencia.ui.HomeScreen
@@ -83,13 +84,13 @@ class MainActivity : ComponentActivity() {
     private val hayConexion = mutableStateOf(true)
     private val sincronizando = mutableStateOf(false)
 
-    // ---------------- Catálogo en la nube (Punto 5) ----------------
-    private val listaProductos = mutableStateListOf<Producto>()
+    // ---------------- Catálogo en la nube: tareas sugeridas (Punto 5) ----------------
+    private val listaSugeridas = mutableStateListOf<TareaSugerida>()
     private val catalogoActualizando = mutableStateOf(false)
     private val catalogoError = mutableStateOf<String?>(null)
 
-    private val productoRepository by lazy {
-        ProductoRepository(AppDatabase.getDatabase(applicationContext).productoDao())
+    private val tareaSugeridaRepository by lazy {
+        TareaSugeridaRepository(AppDatabase.getDatabase(applicationContext).tareaSugeridaDao())
     }
 
     // ---------------- Notas confidenciales (Punto 4) ----------------
@@ -278,9 +279,10 @@ class MainActivity : ComponentActivity() {
 
                 composable("catalogo") {
                     CatalogoScreen(
-                        productos = listaProductos,
+                        sugeridas = listaSugeridas,
                         actualizando = catalogoActualizando.value,
                         error = catalogoError.value,
+                        onImportar = { sugerida -> importarComoTarea(sugerida) },
                         onVolver = { navController.popBackStack() }
                     )
                 }
@@ -530,7 +532,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // =====================================================================================
-    //  CATÁLOGO EN LA NUBE: caché híbrida (Punto 5)
+    //  CATÁLOGO EN LA NUBE: tareas sugeridas con caché híbrida (Punto 5)
     // =====================================================================================
 
     /**
@@ -540,23 +542,43 @@ class MainActivity : ComponentActivity() {
     private fun cargarCatalogo() {
         lifecycleScope.launch {
             // 1. Caché local primero: respuesta inmediata para la interfaz
-            val cache = withContext(Dispatchers.IO) { productoRepository.obtenerCache() }
-            listaProductos.clear()
-            listaProductos.addAll(cache)
+            val cache = withContext(Dispatchers.IO) { tareaSugeridaRepository.obtenerCache() }
+            listaSugeridas.clear()
+            listaSugeridas.addAll(cache)
             catalogoError.value = null
 
             // 2. Actualización remota en segundo plano
             catalogoActualizando.value = true
             try {
-                val actualizados = withContext(Dispatchers.IO) { productoRepository.actualizarDesdeRed() }
-                listaProductos.clear()
-                listaProductos.addAll(actualizados)
+                val actualizadas = withContext(Dispatchers.IO) { tareaSugeridaRepository.actualizarDesdeRed() }
+                listaSugeridas.clear()
+                listaSugeridas.addAll(actualizadas)
             } catch (e: Exception) {
                 // Sin red o error del servidor: el caché local ya mostrado queda como está
                 catalogoError.value = e.message ?: "Error de red"
             } finally {
                 catalogoActualizando.value = false
             }
+        }
+    }
+
+    /**
+     * Convierte una tarea sugerida (de la nube) en una tarea real de la app.
+     * A partir de aquí es una Tarea normal: aparece en HomeScreen, se le
+     * puede dar play y el cronómetro arranca en 0 como cualquier otra.
+     */
+    private fun importarComoTarea(sugerida: TareaSugerida) {
+        lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                tareaSugeridaRepository.marcarImportada(sugerida.id)
+            }
+            crearTareaEnRoom(
+                titulo = sugerida.titulo,
+                descripcion = "Importada desde el catálogo de sugerencias de la nube."
+            )
+            listaSugeridas.clear()
+            listaSugeridas.addAll(tareaSugeridaRepository.obtenerCache())
+            Toast.makeText(this@MainActivity, "Tarea importada", Toast.LENGTH_SHORT).show()
         }
     }
 }
